@@ -18,7 +18,13 @@ type RequestBody struct {
 
 func IssueTokensHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ipOfClient := c.Request.RemoteAddr
+		// if nginx => X-Forwarded-For
+		ipOfClientTmp := c.Request.RemoteAddr
+		ipOfClient, err := service.GetIPv6(ipOfClientTmp)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
 
 		var requestBody RequestBody
 		if err := c.BindJSON(&requestBody); err != nil {
