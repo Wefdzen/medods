@@ -27,7 +27,7 @@ func ParseToken(c *gin.Context, tokenJWT string) (jwt.MapClaims, error) {
 		if float64(time.Now().Unix()) >= claims["liveToken"].(float64) { // если accessToken умер
 			return claims, nil // Я проверял при меньшем времени и оно оказывалось меньше следовательно nil return and error
 		} else {
-			// TODO пока проверка времени бесполезная
+			// TODO пока проверка времени бесполезная time < liveToken
 			return claims, nil // если время еще не вышло и accessToken валиден
 		}
 	}
