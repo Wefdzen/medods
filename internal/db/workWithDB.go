@@ -31,3 +31,14 @@ func (r *GormUserRepository) GetRecord(guid string) (User, error) {
 	err := r.db.Where("guid = ?", guid).First(&tmp).Error
 	return tmp, err
 }
+
+func (r *GormUserRepository) CheckUniqGuid(guid string) bool {
+	tmp := User{}
+	r.db.Where("guid = ?", guid).First(&tmp)
+	return tmp.Guid == ""
+}
+
+func (r *GormUserRepository) UpdateReftokenLiveTokenUnicCode(guid, refreshTokenHash, LiveToken, unicCode string) {
+	r.db.Model(&User{}).Where("guid = ?", guid).UpdateColumn("refresh_token_hash", refreshTokenHash).
+		UpdateColumn("live_token", LiveToken).UpdateColumn("unic_code", unicCode)
+}

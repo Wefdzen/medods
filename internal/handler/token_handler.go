@@ -55,14 +55,6 @@ func IssueTokensHandler() gin.HandlerFunc {
 			return
 		}
 
-		// set refreshToken to base64
-		encodedRefToken := base64.StdEncoding.EncodeToString([]byte(refreshToken))
-
-		// setCookie
-		c.Copy().SetSameSite(http.SameSiteLaxMode)
-		c.SetCookie("accessToken", accessToken, 3600*24*30, "", "", false, true)
-		c.SetCookie("refreshToken", encodedRefToken, 3600*24*30, "", "", false, true)
-
 		// work with database , refTok to bcrypt
 		userRepo := db.NewGormUserRepository()
 
@@ -78,13 +70,27 @@ func IssueTokensHandler() gin.HandlerFunc {
 			UnicCode:         unicCode,
 			LiveToken:        fmt.Sprintf("%v", liveOfRefToken),
 		}
-
+		// check uniq
+		if !db.CheckUniqGuid(userRepo, user.Guid) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Your guid isn't uniq",
+			})
+			return
+		}
 		// add to database
-		err = userRepo.AddRecord(&user)
+		err = db.AddRecord(userRepo, &user)
 		if err != nil {
 			log.Fatal(err)
 			return
 		}
+
+		// set refreshToken to base64
+		encodedRefToken := base64.StdEncoding.EncodeToString([]byte(refreshToken))
+
+		// setCookie
+		c.Copy().SetSameSite(http.SameSiteLaxMode)
+		c.SetCookie("accessToken", accessToken, 3600*24*30, "", "", false, true)
+		c.SetCookie("refreshToken", encodedRefToken, 3600*24*30, "", "", false, true)
 
 		c.Status(http.StatusOK)
 	}

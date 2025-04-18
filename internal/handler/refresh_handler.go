@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -48,7 +49,7 @@ func RefreshTokensHandler() gin.HandlerFunc {
 
 		userRepo := db.NewGormUserRepository()
 
-		user, err := userRepo.GetRecord(claimsRefreshToken["sub"].(string))
+		user, err := db.GetRecord(userRepo, claimsRefreshToken["sub"].(string))
 		if err != nil {
 			log.Fatal(err)
 			return
@@ -84,11 +85,15 @@ func RefreshTokensHandler() gin.HandlerFunc {
 			log.Println(err)
 			return
 		}
-		newRefreshToken, _, err := service.GenerateRefreshToken(claimsAccessToken["sub"].(string), ipOfClient, unicCode)
+		newRefreshToken, newLiveToken, err := service.GenerateRefreshToken(claimsAccessToken["sub"].(string), ipOfClient, unicCode)
 		if err != nil {
 			log.Println(err)
 			return
 		}
+
+		// update in db
+		hashNew, _ := service.HashString(newRefreshToken)
+		db.UpdateReftokenLiveTokenUnicCode(userRepo, claimsAccessToken["sub"].(string), hashNew, fmt.Sprintf("%v", newLiveToken), unicCode)
 
 		// set refreshToken to base64
 		encodedRefToken := base64.StdEncoding.EncodeToString([]byte(newRefreshToken))
@@ -97,8 +102,6 @@ func RefreshTokensHandler() gin.HandlerFunc {
 		c.Copy().SetSameSite(http.SameSiteLaxMode)
 		c.SetCookie("accessToken", newAccessToken, 3600*24*30, "", "", false, true)
 		c.SetCookie("refreshToken", encodedRefToken, 3600*24*30, "", "", false, true)
-
-		// TODO update in db
 
 		c.Status(http.StatusOK)
 	}
