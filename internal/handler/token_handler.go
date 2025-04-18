@@ -20,15 +20,15 @@ func IssueTokensHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// if nginx => X-Forwarded-For
 		ipOfClientTmp := c.Request.RemoteAddr
-		ipOfClient, err := service.ParseIPv6(ipOfClientTmp)
+		ipOfClient, err := service.ParseIPv(ipOfClientTmp)
 		if err != nil {
-			log.Fatal(err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "your ip uncorrect"})
 			return
 		}
 
 		var requestBody RequestBody
 		if err := c.BindJSON(&requestBody); err != nil {
-			c.Status(http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "uncorrect body req"})
 			return
 		}
 
@@ -46,12 +46,16 @@ func IssueTokensHandler() gin.HandlerFunc {
 		// Generate tokens
 		accessToken, err := service.GenerateAccessToken(requestBody.GUID, ipOfClient, unicCode)
 		if err != nil {
-			log.Println(err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err,
+			}) // can't generate accessToken
 			return
 		}
 		refreshToken, liveOfRefToken, err := service.GenerateRefreshToken(requestBody.GUID, ipOfClient, unicCode)
 		if err != nil {
-			log.Println(err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err,
+			}) // can't generate accessToken
 			return
 		}
 
@@ -60,7 +64,9 @@ func IssueTokensHandler() gin.HandlerFunc {
 
 		hashRefreshToken, err := service.HashString(refreshToken)
 		if err != nil {
-			log.Fatal(err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err,
+			})
 			return
 		}
 		user := db.User{
@@ -80,7 +86,8 @@ func IssueTokensHandler() gin.HandlerFunc {
 		// add to database
 		err = db.AddRecord(userRepo, &user)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
+			c.Status(http.StatusInternalServerError) // error can't add to db
 			return
 		}
 
@@ -88,10 +95,10 @@ func IssueTokensHandler() gin.HandlerFunc {
 		encodedRefToken := base64.StdEncoding.EncodeToString([]byte(refreshToken))
 
 		// setCookie
-		c.Copy().SetSameSite(http.SameSiteLaxMode)
+		c.SetSameSite(http.SameSiteLaxMode)
 		c.SetCookie("accessToken", accessToken, 3600*24*30, "", "", false, true)
 		c.SetCookie("refreshToken", encodedRefToken, 3600*24*30, "", "", false, true)
 
-		c.Status(http.StatusOK)
+		c.Status(http.StatusCreated)
 	}
 }

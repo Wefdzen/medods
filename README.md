@@ -15,4 +15,7 @@ Once the application is running, you can access the Swagger UI at the following 
 
 http://localhost:8080/ui-swagger/index.html
 
+or use postman
+
 # Дополнение
+У меня сейчас пофик умер ли токен или нет он все равно позволит /refresh

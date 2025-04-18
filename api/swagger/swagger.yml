@@ -1,0 +1,88 @@
+openapi: 3.0.3
+info:
+  title: Medods Auth API
+  version: 1.0.0
+  description: API для генерации и обновления access/refresh токенов
+
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /api/token:
+    post:
+      summary: Генерация access и refresh токенов
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - guid
+              properties:
+                guid:
+                  type: string
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        '201':
+          description: Токены успешно созданы и записаны в cookie
+        '400':
+          description: Невалидный запрос или неуникальный GUID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/refresh:
+    post:
+      summary: Обновление access и refresh токенов по кукам
+      responses:
+        '200':
+          description: Токены успешно обновлены и записаны в cookie
+        '400':
+          description: Неверный IP или повреждённые токены
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '401':
+          description: Отсутствуют токены в cookies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+

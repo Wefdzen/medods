@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/Wefdzen/medods/internal/db"
@@ -36,14 +35,18 @@ func RefreshTokensHandler() gin.HandlerFunc {
 		// Decode refreshToken
 		refreshToken, err := base64.StdEncoding.DecodeString(refreshTokenBase64)
 		if err != nil {
-			log.Fatal("RefreshToken was not base64")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "your refreshtoken isn't base64",
+			})
 			return
 		}
 		claimsRefreshToken, _ := service.ParseToken(c, string(refreshToken))
 
 		// Check unicCode of couple of tokens
 		if claimsAccessToken["unicCode"].(string) != claimsRefreshToken["unicCode"].(string) {
-			log.Fatal("unicCode of tokens isn't equals")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Your tokens isn't couple",
+			})
 			return
 		}
 
@@ -51,21 +54,25 @@ func RefreshTokensHandler() gin.HandlerFunc {
 
 		user, err := db.GetRecord(userRepo, claimsRefreshToken["sub"].(string))
 		if err != nil {
-			log.Fatal(err)
+			c.Status(http.StatusInternalServerError)
 			return
 		}
 
 		hash := sha256.Sum256(refreshToken)
 		// Check equals of our refToken with refToken from db
 		if err := bcrypt.CompareHashAndPassword([]byte(user.RefreshTokenHash), hash[:]); err != nil {
-			log.Fatal(err)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Your refreshToken isn't valide",
+			})
 			return
 		}
 		// Проверяем айпи откуда был запрос с айпи из бд
 		ipOfClientTmp := c.Request.RemoteAddr
-		ipOfClient, err := service.ParseIPv6(ipOfClientTmp)
+		ipOfClient, err := service.ParseIPv(ipOfClientTmp)
 		if err != nil {
-			log.Fatal(err)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Can't parse your ip",
+			})
 			return
 		}
 
@@ -73,9 +80,9 @@ func RefreshTokensHandler() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "IP текущего пк не равен айпи того кто создавал "})
 			// make smtp схерали у чела есть токены но он на другом пк:#
 			// You can change here stubEmailService
-			err := service.SendWarningEmail(&service.StubEmailService{}, claimsAccessToken["sub"].(string), claimsAccessToken["IpClient"].(string), ipOfClient)
-			if err != nil {
-				log.Fatal(err)
+			err := service.SendWarningEmail(&service.StubEmailService{}, claimsAccessToken["sub"].(string),
+				claimsAccessToken["IpClient"].(string), ipOfClient)
+			if err != nil { // can processing //error with EmailSendler
 				return
 			}
 			return
@@ -87,12 +94,16 @@ func RefreshTokensHandler() gin.HandlerFunc {
 		// Generate tokens
 		newAccessToken, err := service.GenerateAccessToken(claimsAccessToken["sub"].(string), ipOfClient, unicCode)
 		if err != nil {
-			log.Println(err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err,
+			}) // can't generate newAccessToken
 			return
 		}
 		newRefreshToken, newLiveToken, err := service.GenerateRefreshToken(claimsAccessToken["sub"].(string), ipOfClient, unicCode)
 		if err != nil {
-			log.Println(err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err,
+			}) // can't generate newRefreshToken
 			return
 		}
 
@@ -104,7 +115,7 @@ func RefreshTokensHandler() gin.HandlerFunc {
 		encodedRefToken := base64.StdEncoding.EncodeToString([]byte(newRefreshToken))
 
 		// setCookie
-		c.Copy().SetSameSite(http.SameSiteLaxMode)
+		c.SetSameSite(http.SameSiteLaxMode)
 		c.SetCookie("accessToken", newAccessToken, 3600*24*30, "", "", false, true)
 		c.SetCookie("refreshToken", encodedRefToken, 3600*24*30, "", "", false, true)
 
