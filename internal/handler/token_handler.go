@@ -20,7 +20,7 @@ func IssueTokensHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// if nginx => X-Forwarded-For
 		ipOfClientTmp := c.Request.RemoteAddr
-		ipOfClient, err := service.GetIPv6(ipOfClientTmp)
+		ipOfClient, err := service.ParseIPv6(ipOfClientTmp)
 		if err != nil {
 			log.Fatal(err)
 			return

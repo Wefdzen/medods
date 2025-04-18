@@ -4,8 +4,8 @@ import (
 	"net"
 )
 
-// GetIPv6 из [::1]:58635 в ::1.
-func GetIPv6(remoteAddr string) (string, error) {
+// ParseIPv6 из [::1]:58635 в ::1.
+func ParseIPv6(remoteAddr string) (string, error) {
 	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
 		return "", err
