@@ -70,9 +70,14 @@ func RefreshTokensHandler() gin.HandlerFunc {
 		}
 
 		if user.IpClient != ipOfClient {
-			log.Fatal("IP текущего пк не равен айпи того кто создавал ")
-			// TODO make smtp
-
+			c.JSON(http.StatusBadRequest, gin.H{"error": "IP текущего пк не равен айпи того кто создавал "})
+			// make smtp схерали у чела есть токены но он на другом пк:#
+			// You can change here stubEmailService
+			err := service.SendWarningEmail(&service.StubEmailService{}, claimsAccessToken["sub"].(string), claimsAccessToken["IpClient"].(string), ipOfClient)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
 			return
 		}
 
